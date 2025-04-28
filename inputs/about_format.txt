@@ -1,0 +1,12 @@
+    The provide graphs are represented as adjacency matrices. They are undirected and 
+simple. So, the matrix is symmetric and the diagonal entries are 0. The naming format 
+is as follows.
+
+    graph_TYPE_ORDER_DENSITY_ID.txt
+
+    TYPE: Type of the graph. e.g. random, perfect, etc.
+    ORDER: Number of vertices
+    DENSITY: Approximate edge density after the decimal. "50000" corresponds to a density 
+of "0.50".
+    ID: An identification number to distinguish between graphs with same type,
+order and densities
