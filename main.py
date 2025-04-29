@@ -169,21 +169,87 @@ def lp_relaxation_model(adjacency_matrix):
 
     return lp_solution, len(chosen_sets), model.Runtime
 
-def check_if_propoer_coloring(adjacency_matrix, colors):
+def check_if_propoer_coloring(adjacency_matrix, colors):    #Returns True if the coloring is proper, False otherwise
     return all(colors[i] != colors[j] for i in range(len(adjacency_matrix)) for j in range(i+1, len(adjacency_matrix)) if adjacency_matrix[i][j])
 
 result = {}
 
 for graph_name, adjacency_matrix in graph_inputs.items():
-    greedy_colors, greedy_chromatic_number, greedy_time = greedy_algorithm(adjacency_matrix)
-    largest_first_colors, largest_first_chromatic_number, largest_first_time = largest_first_algorithm(adjacency_matrix)
-    dsatur_colors, dsatur_chromatic_number, dsatur_time = dsatur_algorithm(adjacency_matrix)
-    ip_colors, ip_chromatic_number, ip_time = integer_programming_model(adjacency_matrix)
-    lp_relaxation_colors, lp_relaxation_chromatic_number, lp_relaxation_time = lp_relaxation_model(adjacency_matrix)
+    greedy_colors, greedy_result, greedy_time = greedy_algorithm(adjacency_matrix)
+    largest_first_colors, largest_first_result, largest_first_time = largest_first_algorithm(adjacency_matrix)
+    dsatur_colors, dsatur_result, dsatur_time = dsatur_algorithm(adjacency_matrix)
+    ip_colors, ip_result, ip_time = integer_programming_model(adjacency_matrix)
+    lp_relaxation_colors, lp_relaxation_result, lp_relaxation_time = lp_relaxation_model(adjacency_matrix)
 
-    result[graph_name] = [greedy_colors, greedy_chromatic_number, greedy_time, 
-                          largest_first_colors, largest_first_chromatic_number, largest_first_time,
-                          dsatur_colors, dsatur_chromatic_number, dsatur_time,
-                          ip_colors, ip_chromatic_number, ip_time,
-                          lp_relaxation_colors, lp_relaxation_chromatic_number, lp_relaxation_time]
+    result[graph_name] = [greedy_colors, greedy_result, greedy_time, 
+                          largest_first_colors, largest_first_result, largest_first_time,
+                          dsatur_colors, dsatur_result, dsatur_time,
+                          ip_colors, ip_result, ip_time,
+                          lp_relaxation_colors, lp_relaxation_result, lp_relaxation_time]
 
+
+question_1a = {}
+
+for key, item in result.items():
+    txt_name_parts = key.split('_')
+    agg_key = f"{txt_name_parts[1]}_{txt_name_parts[2]}"
+
+    result_greedy = item[1]
+    result_largest_first = item[4]
+    result_dsatur = item[7]
+    best = min(result_greedy, result_largest_first, result_dsatur)
+
+    if agg_key not in question_1a:
+        question_1a[agg_key] = {'greedy': 0, 'largest_first': 0, 'dsatur': 0}
+
+    if result_greedy  == best:
+        question_1a[agg_key]['greedy'] += 1
+    if result_largest_first == best: 
+        question_1a[agg_key]['largest_first'] += 1
+    if result_dsatur  == best: 
+        question_1a[agg_key]['dsatur'] += 1
+
+question_1b = {}
+
+for key, item in result.items():
+    txt_name_parts = key.split('_')
+
+    adjacency_matrix = graph_inputs[key]
+    degree_of_each_vertex = [sum(row) for row in adjacency_matrix]
+    max_degree = max(degree_of_each_vertex)
+
+    result_greedy = item[1]
+
+    agg_key = f"{txt_name_parts[1]}_{txt_name_parts[2]}"
+
+    hits, average_gap, amount = question_1b.get(key, (0, 0, 0))
+
+    if result_greedy == max_degree + 1:
+        hits += 1
+
+    current_average_gap = (average_gap * amount + (100 * (max_degree + 1 - result_greedy) / (max_degree + 1))) / (amount + 1)
+
+    amount += 1
+    question_1b[key] = (hits, current_average_gap, amount)
+
+question_1c = {}
+
+for key, item in result.items():
+    txt_name_parts = key.split('_')
+
+    adjacency_matrix = graph_inputs[key]
+    max_min_value = max([min(index+1, sum(row)+1) for index, row in enumerate(adjacency_matrix)])
+
+    result_largest_first = item[4]
+
+    agg_key = f"{txt_name_parts[1]}_{txt_name_parts[2]}"
+
+    hits, average_gap, amount = question_1c.get(key, (0, 0, 0))
+
+    if result_greedy == max_min_value:
+        hits += 1
+
+    current_average_gap = (average_gap * amount + (100 * (max_min_value - result_largest_first) / (max_min_value))) / (amount + 1)
+
+    amount += 1
+    question_1c[key] = (hits, current_average_gap, amount)
