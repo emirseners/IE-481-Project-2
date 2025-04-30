@@ -1,6 +1,7 @@
 from gurobipy import Model, GRB, quicksum, tuplelist
 from pathlib import Path
 import networkx as nx
+import pandas as pd
 import random
 import time
 
@@ -37,13 +38,11 @@ for order, density in unique_order_density:
         adjacency_matrix = generate_erdos_renyi_graph(order_input, density_input)
         graph_inputs[graph_name] = adjacency_matrix
 
-        """
         # To save random graphs as txt files
         txt_path = Path("inputs/random") / f"graph_{graph_name}.txt"
         with txt_path.open("w", encoding="utf-8") as f:
             for each_row in adjacency_matrix:
                 f.write(''.join(map(str, each_row)) + '\n')
-        """
 
 def greedy_algorithm(adjacency_matrix):
     start_time = time.time()
@@ -253,3 +252,38 @@ for key, item in result.items():
 
     amount += 1
     question_1c[key] = (hits, current_average_gap, amount)
+
+result_cols = [
+    'greedy_colors', 'greedy_result', 'greedy_time',
+    'largest_first_colors', 'largest_first_result', 'largest_first_time',
+    'dsatur_colors', 'dsatur_result', 'dsatur_time',
+    'ip_colors', 'ip_result', 'ip_time',
+    'lp_relaxation_colors', 'lp_relaxation_result', 'lp_relaxation_time'
+]
+
+result_df = pd.DataFrame.from_dict(result, orient='index', columns=result_cols)
+result_df.index.name = 'graph'
+
+q1a_df = pd.DataFrame.from_dict(question_1a, orient='index')
+q1a_df.index.name = 'category'
+
+q1b_df = pd.DataFrame.from_dict(
+    question_1b, orient='index',
+    columns=['hits', 'average_gap', 'amount']
+)
+q1b_df.index.name = 'graph'
+
+q1c_df = pd.DataFrame.from_dict(
+    question_1c, orient='index',
+    columns=['hits', 'average_gap', 'amount']
+)
+q1c_df.index.name = 'graph'
+
+output_path = Path('graph_coloring_analysis.xlsx')
+with pd.ExcelWriter(output_path, engine='xlsxwriter') as writer:
+    result_df.to_excel(writer, sheet_name='result')
+    q1a_df.to_excel(writer, sheet_name='question_1a')
+    q1b_df.to_excel(writer, sheet_name='question_1b')
+    q1c_df.to_excel(writer, sheet_name='question_1c')
+
+print(f'Workbook written → {output_path.resolve()}')
