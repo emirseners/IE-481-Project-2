@@ -171,7 +171,7 @@ def lp_relaxation_model(adjacency_matrix):
 
     return lp_colors, len(chosen_sets), model.Runtime
 
-def check_if_proper_and_maximal_coloring(adjacency_matrix, colors):    #Returns 1 if the coloring is proper, 0 otherwise
+def check_if_proper_coloring(adjacency_matrix, colors):    #Returns 1 if the coloring is proper, 0 otherwise
     if (all(colors[i] != colors[j] for i in range(len(adjacency_matrix)) for j in range(i+1, len(adjacency_matrix)) if adjacency_matrix[i][j]) and all(c in range(1, len(adjacency_matrix) + 1) for c in colors)):
         return 1
     else:
@@ -193,11 +193,11 @@ for graph_name, adjacency_matrix in graph_inputs.items():
                           ip_colors, ip_result, ip_time,
                           lp_relaxation_colors, lp_relaxation_result, lp_relaxation_time]
     
-    proper_coloring_count['greedy'] += check_if_proper_and_maximal_coloring(adjacency_matrix, greedy_colors)
-    proper_coloring_count['largest_first'] += check_if_proper_and_maximal_coloring(adjacency_matrix, largest_first_colors)
-    proper_coloring_count['dsatur'] += check_if_proper_and_maximal_coloring(adjacency_matrix, dsatur_colors)
-    proper_coloring_count['ip'] += check_if_proper_and_maximal_coloring(adjacency_matrix, ip_colors)
-    proper_coloring_count['lp_relaxation'] += check_if_proper_and_maximal_coloring(adjacency_matrix, lp_relaxation_colors)
+    proper_coloring_count['greedy'] += check_if_proper_coloring(adjacency_matrix, greedy_colors)
+    proper_coloring_count['largest_first'] += check_if_proper_coloring(adjacency_matrix, largest_first_colors)
+    proper_coloring_count['dsatur'] += check_if_proper_coloring(adjacency_matrix, dsatur_colors)
+    proper_coloring_count['ip'] += check_if_proper_coloring(adjacency_matrix, ip_colors)
+    proper_coloring_count['lp_relaxation'] += check_if_proper_coloring(adjacency_matrix, lp_relaxation_colors)
 
 question_1a_by_type = {}
 question_1a_by_order = {}
