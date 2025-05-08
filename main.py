@@ -15,7 +15,7 @@ for folder in folders:                              #Read the data and define th
         adjusted_file_name = txt_file.name.removeprefix("graph_").replace("operations_", "").removesuffix(".txt")
         graph_inputs[adjusted_file_name] = adjacency_matrix
 
-# We find unique order densities to check the numver of orders, number of densities and number of replications for each graph instance type. This is done to find instances to define random graphs
+# Unique graphs are extracted to properly define random graphs later
 unique_order_density = {tuple(Path(fname).stem.split('_')[1:3]) for fname in graph_inputs}    #15 graph orders, 3 densities each, 5 replications each (which we obtained by printing)
 
 def generate_erdos_renyi_graph(order, density, seed=None):      # Random erdos reyni graphs are generated. This is done by using the random number generator to generate a random number between 0 and 1.
@@ -23,54 +23,55 @@ def generate_erdos_renyi_graph(order, density, seed=None):      # Random erdos r
         random.seed(seed)
 
     adjacency_matrix = [[0] * order for _ in range(order)]
-    for i in range(order-1):                    # For each vertex, we check if there is an edge between the vertex and the next vertex. If there is, we add it to the adjacency matrix.
-        for j in range(i+1, order):                    
-            if random.random() < density:       # If the random number is less than the density, we add an edge between the two vertices. Bernouilli distribution for each edge, which will result expected graph density of defeined value
-                adjacency_matrix[i][j] = 1      # Since adjacency matrix is symmetric (undirected simple graph)
+    for i in range(order-1):                                    # For each vertex, we check if there is an edge between the vertex and the next vertex. If there is, we add it to the adjacency matrix.
+        for j in range(i+1, order):
+            if random.random() < density:                       # If the random number is less than the density, we add an edge between the two vertices. Bernouilli distribution for each edge, which will result expected graph density of defeined value
+                adjacency_matrix[i][j] = 1                      # Since adjacency matrix is symmetric (undirected simple graph)
                 adjacency_matrix[j][i] = 1
 
     return adjacency_matrix
 
-for order, density in unique_order_density:                                     # We adjust the graph names to properly manage them later, 
+for order, density in unique_order_density:                                    # We define parameters to generate random graphs. 
     for iteration_no in range(5):
         graph_name = f"random_{order}_{density}_0000{iteration_no+1}"
         order_input = int(order)
         density_input = float(density)/100000
-        adjacency_matrix = generate_erdos_renyi_graph(order_input, density_input)  # And generate random erdos renyi graphs
-        graph_inputs[graph_name] = adjacency_matrix
+        adjacency_matrix = generate_erdos_renyi_graph(order_input, density_input)
+        graph_inputs[graph_name] = adjacency_matrix                            # We add the generated graphs also to the graph inputs dictionary
 
-        txt_path = Path("inputs/random") / f"graph_{graph_name}.txt"           # We save the generated graphs to the inputs folder
+        txt_path = Path("inputs/random") / f"graph_{graph_name}.txt"           # We save the generated graphs to the inputs folder random folder
         with txt_path.open("w", encoding="utf-8") as f:
             for each_row in adjacency_matrix:
                 f.write(''.join(map(str, each_row)) + '\n')
 
 def greedy_algorithm(adjacency_matrix):     # Only inputs to all algorithms are adjacency matrices. One might also define random seed.
-    start_time = time.time()                # The time is recorded to measure the running time of the algorithm
+    start_time = time.time()                # The time is recorded
 
-    graph_order = len(adjacency_matrix)     # The order of the graph is defined as the number of vertices in the graph
-    random_order = list(range(graph_order)) # The vertices are defined as a list of numbers from 0 to the order of the graph
-    random.shuffle(random_order)            # The vertices are shuffled randomly to define a random order of the vertices
-    colors = [0] * graph_order              # Coloring list is defined with all colors initially being 0
+    graph_order = len(adjacency_matrix)     # The order of the graph is defined
+    random_order = list(range(graph_order)) # The vertex indices are defined as a list of numbers from 0 to order of the graph - 1
+    random.shuffle(random_order)            # The vertex indices are shuffled randomly to define a random order of the vertices
+    colors = [0] * graph_order              # Coloring list is defined with all colors initially being 0 (uncolored)
 
-    for vertex_index, vertex in enumerate(random_order):            # Iterate over the vertices in the random order
+    for vertex_index, vertex in enumerate(random_order):        # Iterate over the vertices in random order
+        # We define a set which has the information of colors of adjacent vertices to the current vertex
+        colors_of_neighbors = {colors[neighbor_vertex] for neighbor_vertex in random_order[:vertex_index] if adjacency_matrix[vertex][neighbor_vertex] == 1}  
 
-        colors_of_neighbors = {colors[neighbor_vertex] for neighbor_vertex in random_order[:vertex_index] if adjacency_matrix[vertex][neighbor_vertex] == 1}  # For current vertex, we define a set which has the information of colors of adjacent vertices
-
-        c = 1                           # Color with minimum value is defined to the current vertex
+        c = 1                               # Color with minimum possible color number, which is not a color of neighbors
         while c in colors_of_neighbors:
             c += 1
         colors[vertex] = c
 
-    return colors, max(colors), time.time() - start_time        # Returns the coloring of vertices, the number of colors used, and the time taken to run the algorithm
+    return colors, max(colors), time.time() - start_time  # Returns the coloring of vertices, the number of colors used, and the time taken to run the algorithm
 
 def largest_first_algorithm(adjacency_matrix):
     start_time = time.time()
 
     graph_order = len(adjacency_matrix)
-    vertex_degrees = [sum(each_row) for each_row in adjacency_matrix]
-    non_increasing_degree_order = sorted(range(graph_order), key=lambda x: vertex_degrees[x], reverse=True)
+    vertex_degrees = [sum(each_row) for each_row in adjacency_matrix]       # Define a list of vertex degrees
+    non_increasing_degree_order = sorted(range(graph_order), key=lambda x: vertex_degrees[x], reverse=True)  # Sort the vertex indices in non-increasing order of their degrees
     colors = [0] * graph_order
 
+    # The rest is the same as the greedy algorithm, but instead of random order, we use the non-increasing degree order
     for vertex_index, vertex in enumerate(non_increasing_degree_order):
 
         colors_of_neighbors = {colors[neighbor_vertex] for neighbor_vertex in non_increasing_degree_order[:vertex_index] if adjacency_matrix[vertex][neighbor_vertex] == 1}
@@ -89,17 +90,18 @@ def dsatur_algorithm(adjacency_matrix):
     vertex_degrees = [sum(each_row) for each_row in adjacency_matrix]
     colors = [1 if vertex_degrees[i] == 0 else 0 for i in range(graph_order)]
 
-    while 0 in colors:
-        dsatur_list = [-1] * graph_order
-        for vertex_index in range(graph_order):
-            if colors[vertex_index] == 0:
+    while 0 in colors:                              # While there are uncolored vertices
+        dsatur_list = [-1] * graph_order            # We define dsatur list with -1 for all vertices
+        for vertex_index in range(graph_order):     # Iterate over all vertices
+            if colors[vertex_index] == 0:           # And count the number of different colors of adjacent uncolored vertices
                 dsatur_list[vertex_index] = len({colors[neighbor_index] for neighbor_index in range(graph_order) if (adjacency_matrix[vertex_index][neighbor_index] == 1 and colors[neighbor_index] != 0)})
 
-        max_dsatur = max(dsatur_list)
-        vertex_indices_with_max_dsatur = [index_with_max for index_with_max, dsatur in enumerate(dsatur_list) if dsatur == max_dsatur]
-        vertex_indices_with_max_dsatur.sort(key=lambda x: vertex_degrees[x], reverse=True)
-        vertex = vertex_indices_with_max_dsatur[0]
+        max_dsatur = max(dsatur_list)               # Find the maximum dsatur value, which is the maximum number of different colors of an uncolored vertex
+        vertex_indices_with_max_dsatur = [index_with_max for index_with_max, dsatur in enumerate(dsatur_list) if dsatur == max_dsatur] # Find the vertex indices with maximum dsatur value
+        vertex_indices_with_max_dsatur.sort(key=lambda x: vertex_degrees[x], reverse=True) # We sort vertex indices with highest dsatur value in non-increasing order of their degrees
+        vertex = vertex_indices_with_max_dsatur[0] # And pick the vertex index with highest degree
 
+        # Rest is the same, we assign lowest color to the selected vertex
         colors_of_neighbors = {colors[neighbor_vertex] for neighbor_vertex in range(graph_order) if adjacency_matrix[vertex][neighbor_vertex] == 1 and colors[neighbor_vertex] != 0}
 
         c = 1
@@ -180,8 +182,7 @@ def check_if_proper_coloring(adjacency_matrix, colors):    #Returns 1 if the col
 
 result = {}
 proper_coloring_count = {'greedy': 0, 'largest_first': 0, 'dsatur': 0, 'ip': 0, 'lp_relaxation': 0}         # Used to count the number of proper colorings for each algorithm
-ip_instances_exceeding_time_limit = {'p4free': 0, 'perfect': 0, 'random': 0}                                # Used to count the number of instances exceeding time limit for each graph type
-lp_relaxation_instances_exceeding_time_limit = {'p4free': 0, 'perfect': 0, 'random': 0}
+ip_instances_exceeding_time_limit = {'p4free': 10000, 'perfect': 90, 'random': 90}                              # Used to count the number of instances exceeding time limit for each graph type
 
 for graph_name in sorted(graph_inputs, key=lambda n: (n.split('_')[0], int(n.split('_')[1]), int(n.split('_')[2]))):
     adjacency_matrix = graph_inputs[graph_name]
@@ -192,22 +193,14 @@ for graph_name in sorted(graph_inputs, key=lambda n: (n.split('_')[0], int(n.spl
     largest_first_colors, largest_first_result, largest_first_time = largest_first_algorithm(adjacency_matrix)
     dsatur_colors, dsatur_result, dsatur_time = dsatur_algorithm(adjacency_matrix)
 
-    if ip_instances_exceeding_time_limit[graph_type] < 5: # Limit the number of IP instances exceeding time limit to 5 for each graph type. We even record those 5 instances which exceeded time limit
+    if int(graph_name.split('_')[1]) < ip_instances_exceeding_time_limit[graph_type]:               # Limit the number of IP instances exceeding time limit to 5 for each graph type. We even record those 5 instances which exceeded time limit
         ip_colors, ip_result, ip_time = integer_programming_model(adjacency_matrix)
         proper_coloring_count['ip'] += check_if_proper_coloring(adjacency_matrix, ip_colors)
-
-        if ip_time > 600:                                               # 10 minutes of time limit is setted
-            ip_instances_exceeding_time_limit[graph_type] += 1          # If the time limit is exceeded, we increase the count of instances exceeding time limit for that graph type
-    else:
-        ip_colors, ip_result, ip_time = None, None, None
-
-    if lp_relaxation_instances_exceeding_time_limit[graph_type] < 5:
         lp_relaxation_colors, lp_relaxation_result, lp_relaxation_time = lp_relaxation_model(adjacency_matrix)
         proper_coloring_count['lp_relaxation'] += check_if_proper_coloring(adjacency_matrix, lp_relaxation_colors)
 
-        if lp_relaxation_time > 600:
-            lp_relaxation_instances_exceeding_time_limit[graph_type] += 1
     else:
+        ip_colors, ip_result, ip_time = None, None, None
         lp_relaxation_colors, lp_relaxation_result, lp_relaxation_time = None, None, None
 
     result[graph_name] = {'greedy_colors': greedy_colors, 'greedy_result': greedy_result, 'greedy_time': greedy_time,
@@ -425,7 +418,7 @@ proper_df = pd.Series(proper_coloring_count, name='proper_colorings').to_frame()
 proper_df.index.name = 'algorithm'
 
 output_path = Path('graph_coloring_analysis.xlsx')
-with pd.ExcelWriter(output_path, engine='xlsxwriter') as writer:
+with pd.ExcelWriter(output_path) as writer:
     result_df.to_excel(writer, sheet_name='result')
 
     q1a_type_df.to_excel(writer, sheet_name='q1a_type')
