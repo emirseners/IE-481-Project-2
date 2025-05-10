@@ -8,7 +8,7 @@ import time
 graph_inputs = {}
 folders = Path("inputs/p4free"), Path("inputs/perfect")
 
-for folder in folders:                              #Read the data and define the adjacency matrix for each graph intance to graph inputs
+for folder in folders:                                          # Read the data and define the adjacency matrix for each graph intance to graph inputs
     for txt_file in folder.glob("*.txt"):
         with txt_file.open(encoding="utf-8") as f:
             adjacency_matrix = [list(map(int, line.strip())) for line in f]
@@ -56,7 +56,7 @@ def greedy_algorithm(adjacency_matrix):     # Only inputs to all algorithms are 
         # We define a set which has the information of colors of adjacent vertices to the current vertex
         colors_of_neighbors = {colors[neighbor_vertex] for neighbor_vertex in random_order[:vertex_index] if adjacency_matrix[vertex][neighbor_vertex] == 1}  
 
-        c = 1                               # Color with minimum possible color number, which is not a color of neighbors
+        c = 1         # Color with minimum possible color number, which is not a color of neighbors is assigned to the current vertex
         while c in colors_of_neighbors:
             c += 1
         colors[vertex] = c
@@ -101,7 +101,7 @@ def dsatur_algorithm(adjacency_matrix):
         vertex_indices_with_max_dsatur.sort(key=lambda x: vertex_degrees[x], reverse=True) # We sort vertex indices with highest dsatur value in non-increasing order of their degrees
         vertex = vertex_indices_with_max_dsatur[0] # And pick the vertex index with highest degree
 
-        # Rest is the same, we assign lowest color to the selected vertex
+        # Rest is the same, we assign lowest possible color to the selected vertex
         colors_of_neighbors = {colors[neighbor_vertex] for neighbor_vertex in range(graph_order) if adjacency_matrix[vertex][neighbor_vertex] == 1 and colors[neighbor_vertex] != 0}
 
         c = 1
@@ -112,31 +112,37 @@ def dsatur_algorithm(adjacency_matrix):
     return colors, max(colors), time.time() - start_time
 
 def integer_programming_model(adjacency_matrix):
-    start_time = time.time()
+    start_time = time.time()                          # We start timer here and include finding maximal cliques also to the time taken
     graph_order = len(adjacency_matrix)
 
-    input_graph = nx.Graph()
+    input_graph = nx.Graph()                          # We define the input graph in networkx for provided adjacency matrix
     input_graph.add_nodes_from(range(graph_order))
     input_graph.add_edges_from((i, j) for i in range(graph_order-1) for j in range(i + 1, graph_order) if adjacency_matrix[i][j] == 1)
 
-    complement_graph = nx.complement(input_graph)
+    complement_graph = nx.complement(input_graph)     # We define the complement graph of the input graph, and find maximal cliques of the complement graph
     maximal_independent_sets = list(nx.find_cliques(complement_graph))
 
-    model = Model("IP_Vertex_Coloring")
-    model.setParam('OutputFlag', False)
+    model = Model("IP_Vertex_Coloring")        # We define the model
+    model.setParam('OutputFlag', False)        # And not let it print the output
 
+    # We define binary decisions variables for each maximal independent set
     x_i = model.addVars([i for i in range(len(maximal_independent_sets))], vtype=GRB.BINARY, name="x")
 
+    # The objective function is to minimize the number of independent sets chosen
     model.setObjective(quicksum(x_i[i] for i in range(len(maximal_independent_sets))), GRB.MINIMIZE)
 
+    # We add constraints to ensure that each vertex is covered by at least one independent set
+    # This is done by summing the decision variables for each independent set that contains the vertex and ensuring it is at least 1
     for vertex in range(graph_order):
         model.addConstr(sum(x_i[set_index] for set_index, independent_set in enumerate(maximal_independent_sets) if vertex in independent_set) >= 1)
 
+    # Run the model
     model.optimize()
-
+    # And determine the chosen independent sets
     chosen_sets = [maximal_independent_sets[set_index] for set_index in x_i if x_i[set_index].X > 0.5]
 
-    colors = [0] * graph_order
+    # We define the colors for each vertex based on the chosen independent sets
+    colors = [0] * graph_order                                   
     for color_index, independent_set in enumerate(chosen_sets):
         for vertex in independent_set:
             colors[vertex] = color_index + 1
@@ -144,6 +150,7 @@ def integer_programming_model(adjacency_matrix):
     return colors, len(chosen_sets), time.time() - start_time
 
 def lp_relaxation_model(adjacency_matrix):
+    # Everything is the same as the integer programming model, but we define the x_i decision variables as continuous variables between 0 and 1 instead of binary
     start_time = time.time()
     graph_order = len(adjacency_matrix)
 
@@ -166,6 +173,8 @@ def lp_relaxation_model(adjacency_matrix):
 
     model.optimize()
 
+    # Since we are using LP relaxation, the model may not return binary variables, which would not lead a proper coloring
+    # Therefore, to determine whether or not the coloring is proper, we need determine chosen independent sets (value = 1) based on the LP solution
     chosen_sets = [maximal_independent_sets[set_index] for set_index in x_i if x_i[set_index].X >= 0.999]
 
     lp_colors = [0] * graph_order
@@ -181,9 +190,10 @@ def check_if_proper_coloring(adjacency_matrix, colors):    #Returns 1 if the col
     return 0
 
 result = {}
-proper_coloring_count = {'greedy': 0, 'largest_first': 0, 'dsatur': 0, 'ip': 0, 'lp_relaxation': 0}         # Used to count the number of proper colorings for each algorithm
+proper_coloring_count = {'greedy': 0, 'largest_first': 0, 'dsatur': 0, 'ip': 0, 'lp_relaxation': 0}             # Used to count the number of proper colorings for each algorithm
 ip_instances_exceeding_time_limit = {'p4free': 10000, 'perfect': 90, 'random': 90}                              # Used to count the number of instances exceeding time limit for each graph type
 
+# Instead of running models for each question seperately, we run all models for each graph instance and store the results in a dictionary and further process them as needed
 for graph_name in sorted(graph_inputs, key=lambda n: (n.split('_')[0], int(n.split('_')[1]), int(n.split('_')[2]))):
     adjacency_matrix = graph_inputs[graph_name]
     graph_type = graph_name.split('_')[0]
@@ -193,7 +203,10 @@ for graph_name in sorted(graph_inputs, key=lambda n: (n.split('_')[0], int(n.spl
     largest_first_colors, largest_first_result, largest_first_time = largest_first_algorithm(adjacency_matrix)
     dsatur_colors, dsatur_result, dsatur_time = dsatur_algorithm(adjacency_matrix)
 
-    if int(graph_name.split('_')[1]) < ip_instances_exceeding_time_limit[graph_type]:               # Limit the number of IP instances exceeding time limit to 5 for each graph type. We even record those 5 instances which exceeded time limit
+    # Initially, we have been checking for 10 minute time limit for Ip and Lp relaxation models.
+    # However, the code was rasing error when find_cliques were running, which was because of the memory limit.
+    # Therefore, by iteratively runnign this code, we have determined the graph order size for both perfect and random graphs
+    if int(graph_name.split('_')[1]) < ip_instances_exceeding_time_limit[graph_type]:
         ip_colors, ip_result, ip_time = integer_programming_model(adjacency_matrix)
         proper_coloring_count['ip'] += check_if_proper_coloring(adjacency_matrix, ip_colors)
         lp_relaxation_colors, lp_relaxation_result, lp_relaxation_time = lp_relaxation_model(adjacency_matrix)
@@ -220,7 +233,9 @@ question_1a_by_order = {}
 question_1a_by_density = {}
 question_1a_count = {}
 
-for key, item in result.items():
+for key, item in result.items():  # We try to determine the best sequential algorithm by grouping the results by graph type, order and density
+    # We count the number of times each algorithm is the best, and we also calculate the result / graph order for each algorithm on each graph
+    # And record solutions to the dictionary
     txt_name_parts = key.split('_')
     agg_key_by_type = f"{txt_name_parts[0]}"
     agg_key_by_order = f"{txt_name_parts[1]}"
@@ -266,6 +281,7 @@ def adjust_scale(metrics_dict, divisor):
         for k in inner:
             inner[k] /= divisor
 
+# We divide the results by the divisor to get the average result per graph (To be able to compare results grouped by different aspects)
 adjust_scale(question_1a_by_type, 225)
 adjust_scale(question_1a_by_order, 30)
 adjust_scale(question_1a_by_density, 150)
@@ -275,6 +291,7 @@ adjust_scale(question_1a_by_density, 150)
 question_1b = {}
 
 for key, item in result.items():
+    # We count the number of times greedy algorithm results in maximum degree + 1 as the coloring result
     txt_name_parts = key.split('_')
     agg_key = f"{txt_name_parts[0]}"
 
@@ -290,6 +307,7 @@ for key, item in result.items():
     if item['greedy_result'] == max_degree + 1:
         hits += 1
 
+    # And we also calculate the average gap between the greedy result and maximum degree + 1 as a percentage
     current_average_gap = (average_gap * amount + (100 * (max_degree + 1 - item['greedy_result']) / (max_degree + 1))) / (amount + 1)
 
     amount += 1
@@ -306,6 +324,7 @@ for key, item in result.items():
     if agg_key == 'perfect':
         continue
 
+    # In non-increasing degree order, we check if the largest first algorithm results in maximum of min(i, d(vi)+1) over i = 1,...,n as the coloring result
     adjacency_matrix = graph_inputs[key]
     vertex_degrees = [sum(each_row) for each_row in adjacency_matrix]
     non_increasing_degree_order = sorted(range(len(adjacency_matrix)), key=lambda x: vertex_degrees[x], reverse=True)
@@ -316,6 +335,7 @@ for key, item in result.items():
     if item['largest_first_result'] == max_min_value:
         hits += 1
 
+    # And also calculate the average gap between the largest first result and maximum of min(i, d(vi)+1) as a percentage
     current_average_gap = (average_gap * amount + (100 * (max_min_value - item['largest_first_result']) / (max_min_value))) / (amount + 1)
 
     amount += 1
@@ -325,10 +345,14 @@ for key, item in result.items():
 
 question_2a = {}
 
+# From the obtained results, we determined that the best sequential greedy algorithm is the dsatur algorithm
+
 for key, item in result.items():
     txt_name_parts = key.split('_')
     agg_key = f"{txt_name_parts[0]}"
 
+    # We check if the dsatur algorithm results in the same result as the integer programming model (optimal solution)
+    # But we are able to do it only for the graphs that we were able to run the integer programming model
     if item['ip_result'] is None:
         continue
 
@@ -339,6 +363,7 @@ for key, item in result.items():
     if dsatur_opt_ratio == 1:
         question_2a[agg_key]['number_of_optimal'] += 1
     else:
+    # And we also calculate the average gap between the dsatur result and integer programming result as a percentage
         question_2a[agg_key]['percentage_diff'] = (question_2a[agg_key]['percentage_diff'] * question_2a[agg_key]['number_of_not_optimal'] + (100 * (item['dsatur_result'] - item['ip_result']) / item['ip_result'])) / (question_2a[agg_key]['number_of_not_optimal'] + 1)
         question_2a[agg_key]['number_of_not_optimal'] += 1
 
@@ -346,6 +371,7 @@ for key, item in result.items():
 
 question_2b = {}
 
+# We group the results by graph type and calculate the average result for each algorithm
 for key, item in result.items():
     txt_name_parts = key.split('_')
     agg_key = f"{txt_name_parts[0]}"
@@ -379,20 +405,25 @@ for key, item in result.items():
 
 ###################### Post-processing to answer 2c #######################
 
+# We use dictionary comprehension to filter the results for perfect graphs to answer 2c
 selected_keys_2c = ['greedy_result', 'greedy_time', 'largest_first_result', 'largest_first_time', 'dsatur_result', 'dsatur_time']
 question_2c = {k: {col: v[col] for col in selected_keys_2c} for k, v in result.items() if k.startswith('perfect')}
 
 ###################### Post-processing to answer 2d #######################
 
+# We use dictionary comprehension to filter the lp relaxation results to answer 2d
 selected_keys_2d = ['lp_relaxation_colors', 'lp_relaxation_result', 'lp_relaxation_time']
 question_2d = {k: {col: v[col] for col in selected_keys_2d if v[col] is not None} for k, v in result.items()}
 
 ###################### Post-processing to answer 2e #######################
 
+# We use dictionary comprehension to filter the ip and lp relaxation results to answer 2e
 selected_keys_2e = ['ip_colors', 'ip_result', 'ip_time', 'lp_relaxation_colors', 'lp_relaxation_result', 'lp_relaxation_time']
 question_2e = {k: {col: v[col] for col in selected_keys_2e if v[col] is not None} for k, v in result.items()}
 
 ###################### Writing Results #######################
+
+# We write the results to an excel file
 
 result_df = pd.DataFrame.from_dict(result, orient='index')
 result_df.index.name = 'graph'
@@ -419,7 +450,7 @@ q2e_df = pd.DataFrame.from_dict(question_2e, orient='index').rename_axis('graph'
 proper_df = pd.Series(proper_coloring_count, name='proper_colorings').to_frame()
 proper_df.index.name = 'algorithm'
 
-output_path = Path('graph_coloring_analysis.xlsx')
+output_path = Path('all_results.xlsx')
 with pd.ExcelWriter(output_path) as writer:
     result_df.to_excel(writer, sheet_name='result')
 
@@ -437,5 +468,3 @@ with pd.ExcelWriter(output_path) as writer:
     q2e_df.to_excel(writer, sheet_name='q2e')
 
     proper_df.to_excel(writer, sheet_name='proper_coloring_count')
-
-print('Done!!!')
