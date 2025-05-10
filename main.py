@@ -307,7 +307,9 @@ for key, item in result.items():
         continue
 
     adjacency_matrix = graph_inputs[key]
-    max_min_value = max([min(index+1, sum(row)+1) for index, row in enumerate(adjacency_matrix)])
+    vertex_degrees = [sum(each_row) for each_row in adjacency_matrix]
+    non_increasing_degree_order = sorted(range(len(adjacency_matrix)), key=lambda x: vertex_degrees[x], reverse=True)
+    max_min_value = max([min(index+1, vertex_degrees[index]+1) for index in range(len(adjacency_matrix))])
 
     hits, average_gap, amount = question_1c.get(agg_key, (0, 0, 0))
 
