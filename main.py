@@ -364,7 +364,7 @@ for key, item in result.items():
         question_2a[agg_key]['number_of_optimal'] += 1
     else:
     # And we also calculate the average gap between the dsatur result and integer programming result as a percentage
-        question_2a[agg_key]['percentage_diff'] = (question_2a[agg_key]['percentage_diff'] * question_2a[agg_key]['number_of_not_optimal'] + (100 * (item['dsatur_result'] - item['ip_result']) / item['ip_result'])) / (question_2a[agg_key]['number_of_not_optimal'] + 1)
+        question_2a[agg_key]['percentage_diff'] = (question_2a[agg_key]['percentage_diff'] * question_2a[agg_key]['number_of_not_optimal'] + (((100 * item['dsatur_result']) / item['ip_result']) - 100)) / (question_2a[agg_key]['number_of_not_optimal'] + 1)
         question_2a[agg_key]['number_of_not_optimal'] += 1
 
 ###################### Post-processing to answer 2b #######################
@@ -407,7 +407,7 @@ for key, item in result.items():
 
 # We use dictionary comprehension to filter the results for perfect graphs to answer 2c
 selected_keys_2c = ['greedy_result', 'greedy_time', 'largest_first_result', 'largest_first_time', 'dsatur_result', 'dsatur_time']
-question_2c = {k: {col: v[col] for col in selected_keys_2c} for k, v in result.items() if k.startswith('perfect')}
+question_2c = {k: {col: v[col] for col in selected_keys_2c} for k, v in result.items() if k.startswith('p4-free')}
 
 ###################### Post-processing to answer 2d #######################
 
@@ -423,7 +423,7 @@ question_2e = {k: {col: v[col] for col in selected_keys_2e if v[col] is not None
 
 ###################### Writing Results #######################
 
-# We write the results to an excel file
+# We write the results to an excel file, with each question in a separate sheet + proper coloring count + all results
 
 result_df = pd.DataFrame.from_dict(result, orient='index')
 result_df.index.name = 'graph'
